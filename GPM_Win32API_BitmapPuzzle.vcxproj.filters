@@ -1,0 +1,66 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Project">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Project\Header">
+      <UniqueIdentifier>{1bc168bf-fc25-40a9-bd51-d1def3df43e7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Project\Main">
+      <UniqueIdentifier>{7a2d2449-cc70-4617-aa2d-f35ddfb3cc6a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Project\Resouce">
+      <UniqueIdentifier>{6133b5f0-d2e4-43a6-9979-5087bbdadc0d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Project\Piece">
+      <UniqueIdentifier>{499d4b15-128f-4c11-bf2c-e2769324330a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Project\Engine">
+      <UniqueIdentifier>{1d10fe2f-3563-4da0-973b-ad3c1e510107}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Piece.cpp">
+      <Filter>Project\Piece</Filter>
+    </ClCompile>
+    <ClCompile Include="Main.cpp">
+      <Filter>Project\Main</Filter>
+    </ClCompile>
+    <ClCompile Include="App.cpp">
+      <Filter>Project\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="Game.cpp">
+      <Filter>Project\Engine</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Piece.h">
+      <Filter>Project\Piece</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Project\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="App.h">
+      <Filter>Project\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="Game.h">
+      <Filter>Project\Engine</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\..\..\..\Downloads\_GPM_\bitmap1.bmp">
+      <Filter>Project\Resouce</Filter>
+    </Image>
+    <Image Include="bitmap1.bmp">
+      <Filter>Project\Resouce</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="GPM_Win32API_BitmapPuzzle.rc">
+      <Filter>Project\Resouce</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>
