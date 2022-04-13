@@ -1,13 +1,26 @@
 #include "pch.h"
+
 #include "App.h"
 
 CApp* CApp::m_app = nullptr;
 
-CApp::CApp()
+CApp::CApp() 
+	: m_szWindowClass(_T("판다 퍼즐 게임"))
+	, m_szTitle(_T("즐거운 판다 퍼즐 게임"))
+	, m_pX(0), m_pY(0)
+	, m_delta(150)
+	, m_bGameStarted(false)
+	, m_clearMsg{}
+	, m_btnMsg{}
 {
 	srand(static_cast<unsigned int>(time(0)));
 
 	m_game = new CGame();
+
+	m_blueBrush = CreateSolidBrush(RGB(30, 30, 150));
+	m_grayBrush = (HBRUSH)CreateSolidBrush(RGB(100, 100, 200));
+	m_blackSlimPen = CreatePen(PS_DOT, 6, RGB(30, 30, 150));
+	m_rBtnPos = { 500, 20, 580, 50 };
 }
 
 CApp::~CApp()
@@ -26,159 +39,54 @@ LRESULT CALLBACK CApp::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 
 LRESULT CALLBACK CApp::MyProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	HDC hdc;
-	PAINTSTRUCT ps;
-
 	switch (message)
 	{
 	case WM_CREATE:
-		hBitmap = (HBITMAP)LoadBitmap(((LPCREATESTRUCT)lParam)->hInstance, MAKEINTRESOURCE(IDB_BITMAP1));
-
-		for (y = 0; y < 4; ++y)
-		{
-			for (x = 0; x < 4; ++x)
-			{
-				if (index >= 15) // 마지막 칸은 비워두기 (게임용)
-				{
-					pieces[y][x] = CPiece(-1, POINT{ x * delta, y * delta });
-					break;
-				}
-
-				pieces[y][x] = CPiece(index, POINT{ x * delta, y * delta });
-				index++;
-			}
-		}
+		InitializePuzzle(lParam);
 		break;
 
 	case WM_PAINT:
-		hdc = BeginPaint(hWnd, &ps);
+		m_hdc = BeginPaint(hWnd, &m_ps);
 		GetClientRect(hWnd, &rectView);
-		memdc = CreateCompatibleDC(hdc);
+		memdc = CreateCompatibleDC(m_hdc);
 		SelectObject(memdc, hBitmap);
-		for (y = 0; y < 4; ++y) // max : 600
-		{
-			for (x = 0; x < 4; ++x) // 빈 자리의 id=-1 이므로, 출력하지 않기
-			{
-				if (pieces[y][x].GetId() < 0)
-					continue;
 
-				BitBlt(hdc, x * delta,
-					y * delta,
-					delta,
-					delta, memdc,
-					pieces[y][x].GetPos().x,
-					pieces[y][x].GetPos().y, SRCCOPY);
-			}
+		DrawPieces(); // 조각 그리기
+		DrawAxisLines(); // 격자 그리기
+		if (IsGameStarted())
+		{
+			if (IsAllPiecesCorrect())
+				PrintClearMessage();
+		}
+		else
+		{
+			DrawStartButton();
 		}
 
-		// <- render 함수로 따로 빼기 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-		hOldPen = (HPEN)SelectObject(hdc, hPen);
-		for (y = 0; y < 5; ++y)
-		{
-			for (x = 0; x < 5; ++x)
-			{
-				MoveToEx(hdc, x * delta, 0 * delta, NULL);
-				LineTo(hdc, x * delta, 4 * delta);
-			}
-			MoveToEx(hdc, 0 * delta, y * delta, NULL);
-			LineTo(hdc, 4 * delta, y * delta);
-		}
-		SelectObject(hdc, hOldPen);
-
-		swprintf_s(clearMsg, L"Clear! 축하합니다!");
-		/*if (bClearCheck && bGameStarted)*/
-		if (bClearCheck)
-		{
-			MessageBox(hWnd, clearMsg, _T("Clear"), MB_OK);
-			//TextOut(hdc, 250, 50, clearMsg, wcslen(clearMsg));
-			TextOut(hdc, 250, 50, clearMsg, wcslen(clearMsg));
-		}
 		DeleteDC(memdc);
-
-		swprintf_s(posMsg, L"( %d, %d )", pX, pY);
-		TextOut(hdc, 0, 0, posMsg, wcslen(posMsg));
-
-		// 버튼 UI 그리기
-		swprintf_s(btnMsg, L"게임시작!", RAND_MIX_VALUE);
-		if (!bGameStarted)
-		{
-			hOldPen = (HPEN)SelectObject(hdc, hGrayBrush);
-			Rectangle(hdc, rBtnPos.left, rBtnPos.top, rBtnPos.right, rBtnPos.bottom);
-			SelectObject(hdc, hOldPen);
-			TextOut(hdc, rBtnPos.left + 5, rBtnPos.top + 5, btnMsg, wcslen(btnMsg));
-		}
-
-		EndPaint(hWnd, &ps);
+		EndPaint(hWnd, &m_ps);
 		break;
 
 	case WM_LBUTTONDOWN:
-		pX = LOWORD(lParam);
-		pY = HIWORD(lParam);
+		m_pX = LOWORD(lParam);
+		m_pY = HIWORD(lParam);
+		m_dotX = m_pX / 150;
+		m_dotY = m_pY / 150;
 
 		// 버튼 생성 (무작위 섞기)
-		if (pX >= rBtnPos.left && pX <= rBtnPos.right &&
-			pY >= rBtnPos.top && pY <= rBtnPos.bottom) // 버튼 좌표 지정
+		if (IsButtonClicked())
 		{
-			for (int k = 0; k < RAND_MIX_VALUE; k++)
-			{
-				pX = static_cast<int>(rand() % 4);
-				pY = static_cast<int>(rand() % 4);
-
-				if ((abs(pX - voidPos.x) + abs(pY - voidPos.y)) == 1)
-				{
-					CPiece temp = pieces[pY][pX];
-					pieces[pY][pX] = pieces[voidPos.y][voidPos.x];
-					pieces[voidPos.y][voidPos.x] = temp;
-
-					voidPos.x = pX;
-					voidPos.y = pY;
-				}
-			}
-
-			bGameStarted = true;
+			m_game->ShufflePuzzleRandomly();
 		}
-
-		pX /= 150;
-		pY /= 150;
-		// 인접한 위치로만, 퍼즐 이동 가능 !
-		if ((abs(pX - voidPos.x) + abs(pY - voidPos.y)) == 1)
+		if (m_pX >= m_rBtnPos.left && m_pX <= m_rBtnPos.right &&
+			m_pY >= m_rBtnPos.top && m_pY <= m_rBtnPos.bottom) // 버튼 좌표 지정
 		{
-			CPiece temp = pieces[pY][pX];
-			pieces[pY][pX] = pieces[voidPos.y][voidPos.x];
-			pieces[voidPos.y][voidPos.x] = temp;
-
-			voidPos.x = pX;
-			voidPos.y = pY;
+			m_game->ShufflePuzzleRandomly();
 		}
+		m_game->MovePiece(m_dotX, m_dotY);
 
-		// 게임 Clear (index : 0~15 )
-		bClearCheck = true;
-		idCnt = 0;
-		for (int checkY = 0; checkY < 4; checkY++)
-		{
-			for (int checkX = 0; checkX < 4; checkX++)
-			{
-				// 나중에 함수로 빼냈을 때, 활성화 할 내용
-				/*if (pieces[checkY][checkX].GetId() < 0)
-					return bClearCheck;*/
-
-				if (idCnt == 15)
-					break;
-
-				if (pieces[checkY][checkX].GetId() != idCnt)
-				{
-					bClearCheck = false;
-					break;
-				}
-
-
-				idCnt++;
-			}
-
-			if (!bClearCheck)
-				break;
-		}
-
+		// 게임 클리어 (index : 0~15 )
+		IsAllPiecesCorrect();
 		InvalidateRgn(hWnd, NULL, TRUE);
 		break;
 
@@ -212,7 +120,7 @@ int CApp::Initialize(
 	wcex.hInstance = hInstance;
 	wcex.hIcon = LoadIcon(hInstance, IDI_APPLICATION);
 	wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wcex.hbrBackground = m_hBlueBrush;
+	wcex.hbrBackground = m_blueBrush;
 	wcex.lpszMenuName = NULL;
 	wcex.lpszClassName = m_szWindowClass;
 	wcex.hIconSm = LoadIcon(wcex.hInstance, IDI_APPLICATION);
@@ -229,7 +137,7 @@ int CApp::Initialize(
 
 	hInst = hInstance;
 
-	HWND hWnd = CreateWindow(
+	m_hWnd = CreateWindow(
 		m_szWindowClass,
 		m_szTitle,
 		WS_OVERLAPPEDWINDOW,
@@ -240,7 +148,7 @@ int CApp::Initialize(
 		hInstance,
 		NULL);
 
-	if (!hWnd)
+	if (!m_hWnd)
 	{
 		MessageBox(NULL,
 			_T("Call to CreateWindow failed!"),
@@ -250,19 +158,109 @@ int CApp::Initialize(
 		return 1;
 	}
 
-	ShowWindow(hWnd, nCmdShow);
-	UpdateWindow(hWnd);
+	ShowWindow(m_hWnd, nCmdShow);
+	UpdateWindow(m_hWnd);
 }
 
 MSG CApp::RunLoop()
 {
-	// Main message loop:
 	MSG msg;
 	while (GetMessage(&msg, NULL, 0, 0))
 	{
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 	}
-
 	return msg;
+}
+
+bool CApp::InitializePuzzle(LPARAM lParam)
+{
+	hBitmap = (HBITMAP)LoadBitmap(((LPCREATESTRUCT)lParam)->hInstance, MAKEINTRESOURCE(IDB_BITMAP1));
+	
+	swprintf_s(m_clearMsg, L"클리어하셨습니다! 축하합니다!");
+	swprintf_s(m_btnMsg, L"게임시작");
+
+	if (m_game->InitializeGame(m_delta))
+		return false;
+}
+
+void CApp::DrawPieces()
+{
+	int x, y;
+	for (y = 0; y < 4; ++y) // max : 600
+	{
+		for (x = 0; x < 4; ++x) // 빈 자리의 id=-1 이므로, 출력하지 않기
+		{
+			CPiece(*pPieces)[4] = m_game->GetPieces();
+			if (pPieces[y][x].GetId() < 0)
+				continue;
+
+			BitBlt(m_hdc, x * m_delta,
+				y * m_delta,
+				m_delta,
+				m_delta, memdc,
+				pPieces[y][x].GetPos().x,
+				pPieces[y][x].GetPos().y, SRCCOPY);
+		}
+	}
+}
+
+void CApp::DrawAxisLines()
+{
+	HPEN m_oldPen = (HPEN)SelectObject(m_hdc, m_blackSlimPen);
+
+	int x, y;
+	for (y = 0; y < 5; ++y)
+	{
+		for (x = 0; x < 5; ++x)
+		{
+			MoveToEx(m_hdc, x * m_delta, 0 * m_delta, NULL);
+			LineTo(m_hdc, x * m_delta, 4 * m_delta);
+		}
+		MoveToEx(m_hdc, 0 * m_delta, y * m_delta, NULL);
+		LineTo(m_hdc, 4 * m_delta, y * m_delta);
+	}
+	SelectObject(m_hdc, m_oldPen);
+}
+
+void CApp::DrawStartButton() // 버튼 그리기
+{
+	HPEN hOldPen = (HPEN)SelectObject(m_hdc, m_grayBrush);
+	Rectangle(m_hdc, m_rBtnPos.left, m_rBtnPos.top, m_rBtnPos.right, m_rBtnPos.bottom);
+	SelectObject(m_hdc, hOldPen);
+	TextOut(m_hdc, m_rBtnPos.left + 5, m_rBtnPos.top + 5, m_btnMsg, wcslen(m_btnMsg));
+}
+
+void CApp::PrintClearMessage()
+{
+	MessageBox(m_hWnd, m_clearMsg, _T("Clear"), MB_OK);
+	//TextOut(hdc, 250, 50, clearMsg, wcslen(clearMsg));
+	TextOut(m_hdc, 250, 50, m_clearMsg, wcslen(m_clearMsg));
+}
+
+bool CApp::IsAllPiecesCorrect()
+{
+	int idCnt = 0;
+	CPiece(*pPieces)[4] = m_game->GetPieces();
+
+	for (int checkY = 0; checkY < 4; checkY++)
+	{
+		for (int checkX = 0; checkX < 4; checkX++)
+		{
+			// 나중에 함수로 빼냈을 때, 활성화 할 내용
+			/*if (pieces[checkY][checkX].GetId() < 0)
+				return bClearCheck;*/
+
+			if (idCnt == 15)
+				return TRUE;
+
+			if (pPieces[checkY][checkX].GetId() != idCnt)
+			{
+				return FALSE;
+			}
+
+			idCnt++;
+		}
+	}
+	return TRUE;
 }

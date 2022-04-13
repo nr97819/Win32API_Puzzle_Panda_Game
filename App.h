@@ -1,57 +1,41 @@
 #pragma once
 
-#include "pch.h"
 #include "Game.h"
+#include <time.h>
+#include "resource.h"
+#include "Piece.h"
 
 class CApp
 {
 private:
-	// =============================================
-	static CApp* m_app;
-	CGame* m_game;
-	// =============================================
+	static CApp*	m_app;
+	CGame*			m_game;
 
-	TCHAR m_szWindowClass[50] = _T("판다 퍼즐 게임");
-	TCHAR m_szTitle[50] = _T("즐거운 판다 퍼즐 게임");
+private:
+	HDC				m_hdc;
+	PAINTSTRUCT		m_ps;
+	HWND			m_hWnd;
 
-	// 회색 배경 그리기
-	HBRUSH m_hBlueBrush = CreateSolidBrush(RGB(30, 30, 150));
+	HINSTANCE		hInst;
+	HDC				memdc;
+	RECT			rectView;
+	HBITMAP			hBitmap;
 
-	HINSTANCE hInst;
+	TCHAR			m_szWindowClass[50] = {};
+	TCHAR			m_szTitle[50];
 
-	HDC memdc;
-	RECT rectView;
-	HBITMAP hBitmap;
+	HPEN			m_blackSlimPen; // 격자 두께 설정용 펜
+	HBRUSH			m_blueBrush; // 파랑
+	HBRUSH			m_grayBrush; // 회색
 
-	int x = 0, y = 0;
-	int delta = 150;
-	//int delta2 = 150 / (1.5);
+	WCHAR			m_clearMsg[50];
+	WCHAR			m_btnMsg[30];
+	RECT			m_rBtnPos; // 버튼 UI 좌표 지정
 
-	WCHAR posMsg[30] = {};
-	int pX = 0, pY = 0;
-	// 조각을 넣는 부분
-	int index = 0;
-	CPiece pieces[4][4] = {};
-
-	// 격자 두께 설정
-	HPEN hPen = CreatePen(PS_DOT, 6, RGB(30, 30, 150));
-	HPEN hOldPen;
-
-	// 게임 퍼즐 옮기기 로직
-	POINT voidPos{ 3, 3 };
-	// static int dirArr[4] = { -4, +4, +1, -1 };
-
-	// 버튼 UI 좌표 지정
-	HBRUSH hGrayBrush = (HBRUSH)CreateSolidBrush(RGB(100, 100, 200));
-	RECT rBtnPos = { 500, 20, 580, 50 };
-	int RAND_MIX_VALUE = 1000;
-	WCHAR btnMsg[30] = {};
-
-	// 게임 Clear 처리
-	bool bClearCheck = true;
-	bool bGameStarted = false;
-	int idCnt = 0;
-	WCHAR clearMsg[50] = {};
+	int				m_delta;
+	int				m_pX,	m_pY; // POINT(x, y) 임시 저장용
+	int				m_dotX,	m_dotY;
+	bool			m_bGameStarted;
 
 private:
 	CApp();
@@ -79,12 +63,35 @@ public:
 	static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 	LRESULT CALLBACK MyProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
-	int Initialize(
-		_In_ HINSTANCE hInstance,
-		_In_opt_ HINSTANCE hPrevInstance,
-		_In_ LPSTR     lpCmdLine,
-		_In_ int       nCmdShow);
-
+	int Initialize(	_In_ HINSTANCE hInstance,
+					_In_opt_ HINSTANCE hPrevInstance,
+					_In_ LPSTR     lpCmdLine,
+					_In_ int       nCmdShow);
 	MSG RunLoop();
+
+public:
+	bool InitializePuzzle(LPARAM lParam);
+
+	void DrawAxisLines();
+	void DrawPieces();
+
+	void DrawStartButton();
+	void PrintClearMessage();
+
+	bool IsAllPiecesCorrect();
+	bool IsGameStarted() { return this->m_bGameStarted; }
+	bool IsButtonClicked()
+	{
+		if (this->m_pX >= this->m_rBtnPos.left &&
+			this->m_pX <= this->m_rBtnPos.right &&
+			this->m_pY >= this->m_rBtnPos.top &&
+			this->m_pY <= this->m_rBtnPos.bottom)
+		{
+			m_bGameStarted = true;
+			return true;
+		}
+		else
+			return false;
+	}
 };
 
